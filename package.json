@@ -1,0 +1,48 @@
+{
+  "name": "@keeponfirst/kof-stitch-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server for Google Stitch - AI-powered UI/UX design tool. Works with Claude Code, Cursor, and any MCP-compatible client.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "stitch",
+    "google",
+    "ai",
+    "ui",
+    "ux",
+    "design",
+    "claude",
+    "cursor",
+    "keeponfirst"
+  ],
+  "author": "KeepOnFirst",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/keeponfirst/kof-stitch-mcp.git"
+  },
+  "homepage": "https://github.com/keeponfirst/kof-stitch-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/keeponfirst/kof-stitch-mcp/issues"
+  },
+  "main": "src/index.js",
+  "bin": {
+    "kof-stitch-mcp": "./src/index.js"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
