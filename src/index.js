@@ -234,6 +234,86 @@ async function fetchScreenImage(projectId, screenId, gcpProjectId) {
     };
 }
 
+/**
+ * 匯出整個專案的所有 screens（code + images）
+ */
+async function exportProject(projectId, gcpProjectId, outputDir) {
+    const exportDir = outputDir || path.join(process.cwd(), `stitch_export_${projectId}`);
+
+    // 建立匯出目錄
+    if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+    }
+
+    log.info(`Exporting project ${projectId} to ${exportDir}`);
+
+    // 取得所有 screens
+    const listRes = await callStitchAPI("tools/call", {
+        name: "list_screens",
+        arguments: { projectId }
+    }, gcpProjectId);
+
+    const screens = listRes.result?.content?.[0]?.text
+        ? JSON.parse(listRes.result.content[0].text)
+        : [];
+
+    if (!Array.isArray(screens) || screens.length === 0) {
+        throw new Error("No screens found in project");
+    }
+
+    log.info(`Found ${screens.length} screens`);
+
+    const results = [];
+
+    for (const screen of screens) {
+        const screenId = screen.id || screen.name;
+        if (!screenId) continue;
+
+        log.info(`Processing screen: ${screenId}`);
+        const screenResult = { screenId, code: null, image: null };
+
+        // 下載 code
+        try {
+            const code = await fetchScreenCode(projectId, screenId, gcpProjectId);
+            const codeFile = path.join(exportDir, `${screenId}.html`);
+            fs.writeFileSync(codeFile, code);
+            screenResult.code = codeFile;
+        } catch (e) {
+            log.error(`Code download failed for ${screenId}: ${e.message}`);
+        }
+
+        // 下載 image
+        try {
+            const imgResult = await fetchScreenImage(projectId, screenId, gcpProjectId);
+            // 移動到匯出目錄
+            const destFile = path.join(exportDir, `${screenId}.png`);
+            fs.renameSync(imgResult.filePath, destFile);
+            screenResult.image = destFile;
+        } catch (e) {
+            log.error(`Image download failed for ${screenId}: ${e.message}`);
+        }
+
+        results.push(screenResult);
+    }
+
+    // 建立 manifest
+    const manifest = {
+        projectId,
+        exportedAt: new Date().toISOString(),
+        screens: results
+    };
+    const manifestFile = path.join(exportDir, 'manifest.json');
+    fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+
+    log.success(`Export complete: ${results.length} screens`);
+
+    return {
+        exportDir,
+        manifest,
+        screenCount: results.length
+    };
+}
+
 // ============================================================================
 // MCP Server
 // ============================================================================
@@ -262,6 +342,18 @@ const CUSTOM_TOOLS = [
                 screenId: { type: "string", description: "Screen ID" }
             },
             required: ["projectId", "screenId"]
+        }
+    },
+    {
+        name: "export_project",
+        description: "批次匯出整個專案的所有 screens。下載每個 screen 的 HTML 和 PNG 到指定目錄，並建立 manifest.json。",
+        inputSchema: {
+            type: "object",
+            properties: {
+                projectId: { type: "string", description: "Stitch 專案 ID" },
+                outputDir: { type: "string", description: "匯出目錄路徑（選填，預設為當前目錄下的 stitch_export_<projectId>）" }
+            },
+            required: ["projectId"]
         }
     }
 ];
@@ -321,6 +413,16 @@ async function main() {
                             { type: "text", text: `Image saved to ${result.fileName}` },
                             { type: "image", data: result.base64, mimeType: "image/png" }
                         ]
+                    };
+                }
+
+                if (name === "export_project") {
+                    const result = await exportProject(args.projectId, gcpProjectId, args.outputDir);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `✅ Exported ${result.screenCount} screens to ${result.exportDir}\n\nManifest:\n${JSON.stringify(result.manifest, null, 2)}`
+                        }]
                     };
                 }
 

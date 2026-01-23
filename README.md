@@ -30,6 +30,7 @@ Your MCP Client → kof-stitch-mcp → Google Stitch API
 ### Additional Tools (by this package)
 - `fetch_screen_code` - Download screen HTML code directly
 - `fetch_screen_image` - Download screen screenshot as PNG
+- `export_project` - **NEW** Batch export all screens (HTML + PNG) with manifest
 
 ## Prerequisites
 
