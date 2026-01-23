@@ -185,7 +185,7 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 - [Google Stitch](https://stitch.withgoogle.com/) - Official Stitch web app
 - [Stitch MCP Docs](https://stitch.withgoogle.com/docs/mcp/setup) - Official documentation
 - [MCP Protocol](https://modelcontextprotocol.io/) - Model Context Protocol spec
-- [KeepOnFirst Agentic Workflow](https://github.com/anthropics/keeponfirst-agentic-workflow-starter) - Workflow starter using this package
+- [KeepOnFirst Agentic Workflow](https://github.com/keeponfirst/keeponfirst-agentic-workflow-starter) - Workflow starter using this package
 
 ## License
 
