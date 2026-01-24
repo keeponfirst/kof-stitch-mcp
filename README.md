@@ -1,5 +1,9 @@
 # @keeponfirst/kof-stitch-mcp
 
+> **Part of [KOF Agentic Workflow](https://github.com/keeponfirst/keeponfirst-agentic-workflow-starter)** - A complete agentic workflow for building modern applications. Check out the full workflow if you're interested in how this tool fits into the bigger picture.
+
+---
+
 MCP (Model Context Protocol) Server for [Google Stitch](https://stitch.withgoogle.com/) - AI-powered UI/UX design tool.
 
 Works with **Claude Code**, **Cursor**, and any MCP-compatible client.
