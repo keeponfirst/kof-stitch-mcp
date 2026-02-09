@@ -4,6 +4,14 @@
 
 ---
 
+## ☕ Support this project
+
+If this project helps you, you can support development here:
+
+👉 https://buymeacoffee.com/keeponfirst
+
+---
+
 MCP (Model Context Protocol) Server for [Google Stitch](https://stitch.withgoogle.com/) - AI-powered UI/UX design tool.
 
 Works with **Claude Code**, **Cursor**, and any MCP-compatible client.
