@@ -10,6 +10,10 @@ If this project helps you, you can support development here:
 
 👉 https://buymeacoffee.com/keeponfirst
 
+<a href="https://www.buymeacoffee.com/keeponfirst" target="_blank">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="45" />
+</a>
+
 ---
 
 MCP (Model Context Protocol) Server for [Google Stitch](https://stitch.withgoogle.com/) - AI-powered UI/UX design tool.
