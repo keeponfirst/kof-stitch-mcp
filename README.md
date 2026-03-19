@@ -47,7 +47,8 @@ Your MCP Client → kof-stitch-mcp → Google Stitch API
 - `fetch_screen_code` - Download screen HTML code directly
 - `fetch_screen_image` - Download screen screenshot as PNG
 - `export_project` - Batch export all screens (HTML + PNG) with manifest
-- `fetch_design_md` - **NEW** Download project's DESIGN.md design system spec (supports [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/))
+- `fetch_design_md` - Download project's DESIGN.md design system spec (supports [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/))
+- `init_stitch_project` - **NEW** Initialize `.stitch/` directory for [stitch-skills](https://github.com/google-labs-code/stitch-skills) compatibility
 
 ## Prerequisites
 
@@ -168,6 +169,77 @@ Google Stitch's new **DESIGN.md** feature (launched 2026-03-18) lets you define 
 1. Design in Stitch → export DESIGN.md from project settings
 2. fetch_design_md → saves DESIGN.md to your repo
 3. Claude Code reads DESIGN.md → generates consistent UI components
+```
+
+## stitch-skills Integration
+
+[stitch-skills](https://github.com/google-labs-code/stitch-skills) is Google's official Agent Skills library that adds advanced workflows on top of Stitch — multi-page loops, React component conversion, Remotion video walkthroughs, and more.
+
+**kof-stitch-mcp is the authentication layer that makes stitch-skills work** in Claude Code and Cursor, where Google OAuth is not natively supported.
+
+### Why use them together?
+
+| Without stitch-skills | With stitch-skills |
+|-----------------------|--------------------|
+| Manual prompt for each screen | `stitch-loop` auto-generates all pages in sequence |
+| AI guesses design rules | Every screen enforced against `DESIGN.md` |
+| Raw HTML output | `react-components` converts to modular React/Vite components |
+| Static designs | `remotion` generates interactive video walkthroughs |
+
+### Setup (one-time)
+
+**Step 1 — Configure kof-stitch-mcp** (authentication bridge)
+
+Add to your `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["-y", "@keeponfirst/kof-stitch-mcp"],
+      "env": { "GOOGLE_CLOUD_PROJECT": "your-project-id" }
+    }
+  }
+}
+```
+
+**Step 2 — Install stitch-skills**
+```bash
+# Install the skills you need
+npx skills add google-labs-code/stitch-skills --skill stitch-design
+npx skills add google-labs-code/stitch-skills --skill stitch-loop
+npx skills add google-labs-code/stitch-skills --skill design-md
+npx skills add google-labs-code/stitch-skills --skill react-components
+```
+
+**Step 3 — Initialize your project**
+
+In Claude Code, run:
+```
+Initialize my Stitch project <projectId> with init_stitch_project
+```
+
+This creates:
+```
+.stitch/
+├── metadata.json   ← screens map + project config (stitch-skills format)
+├── DESIGN.md       ← design system template pre-filled from your Stitch theme
+├── SITE.md         ← site vision and page checklist
+└── designs/        ← output directory for HTML + PNG exports
+```
+
+**Step 4 — Fill in the templates**
+
+Edit `.stitch/DESIGN.md` to complete your color palette, typography, and component rules. Edit `.stitch/SITE.md` to describe your site goals and pages.
+
+Or let the `design-md` skill analyze your existing screens and fill in DESIGN.md automatically.
+
+**Step 5 — Run advanced workflows**
+```
+Run stitch-loop to generate all pages in my site
+```
+```
+Convert my Stitch screens to React components
 ```
 
 ## Environment Variables

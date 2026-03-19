@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-19
+
+### Added
+- New tool: `init_stitch_project` - Initialize `.stitch/` directory for stitch-skills compatibility
+  - Auto-builds `metadata.json` with full screens map (stitch-skills format)
+  - Generates `DESIGN.md` template pre-filled with project's `designTheme` (colors, font, roundness)
+  - Generates `SITE.md` template with page checklist
+  - Creates `designs/` output directory
+  - Enables `stitch-loop`, `design-md`, `react-components` skills out of the box
+
 ## [1.2.0] - 2026-03-19
 
 ### Added

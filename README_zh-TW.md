@@ -47,7 +47,8 @@ Google Stitch 在 `stitch.googleapis.com/mcp` 提供官方 MCP 端點，但它�
 - `fetch_screen_code` - 直接下載畫面 HTML 程式碼
 - `fetch_screen_image` - 下載畫面截圖為 PNG
 - `export_project` - 批次匯出所有畫面（HTML + PNG）並產生清單
-- `fetch_design_md` - **新功能** 下載專案的 DESIGN.md 設計系統規範文件（支援 [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/)）
+- `fetch_design_md` - 下載專案的 DESIGN.md 設計系統規範文件（支援 [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/)）
+- `init_stitch_project` - **新功能** 初始化 `.stitch/` 目錄，與 [stitch-skills](https://github.com/google-labs-code/stitch-skills) 工作流程完全相容
 
 ## 前置需求
 
@@ -168,6 +169,76 @@ Google Stitch 全新的 **DESIGN.md** 功能（2026-03-18 發布）讓你用一�
 1. 在 Stitch 設計 → 從專案設定匯出 DESIGN.md
 2. fetch_design_md → 儲存 DESIGN.md 到你的 repo
 3. Claude Code 讀取 DESIGN.md → 生成符合設計系統的 UI 元件
+```
+
+## 與 stitch-skills 整合
+
+[stitch-skills](https://github.com/google-labs-code/stitch-skills) 是 Google 官方的 Agent Skills 程式庫，在 Stitch 之上加入進階工作流程 — 多頁面自動生成循環、React 元件轉換、Remotion 影片走覽等。
+
+**kof-stitch-mcp 是讓 stitch-skills 在 Claude Code 和 Cursor 中正常運作的認證橋接層**，因為這些工具原生不支援 Google OAuth。
+
+### 為什麼要搭配使用？
+
+| 只用 kof-stitch-mcp | 搭配 stitch-skills |
+|---------------------|-------------------|
+| 每個畫面要手動下提示詞 | `stitch-loop` 自動依序生成所有頁面 |
+| AI 自己猜設計規則 | 每個畫面強制遵循 `DESIGN.md` 規範 |
+| 輸出原始 HTML | `react-components` 轉換為模組化 React/Vite 元件 |
+| 靜態設計稿 | `remotion` 生成互動式影片走覽 |
+
+### 設定步驟（一次性）
+
+**第一步 — 設定 kof-stitch-mcp**（認證橋接）
+
+在 `.mcp.json` 中加入：
+```json
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["-y", "@keeponfirst/kof-stitch-mcp"],
+      "env": { "GOOGLE_CLOUD_PROJECT": "your-project-id" }
+    }
+  }
+}
+```
+
+**第二步 — 安裝 stitch-skills**
+```bash
+npx skills add google-labs-code/stitch-skills --skill stitch-design
+npx skills add google-labs-code/stitch-skills --skill stitch-loop
+npx skills add google-labs-code/stitch-skills --skill design-md
+npx skills add google-labs-code/stitch-skills --skill react-components
+```
+
+**第三步 — 初始化專案**
+
+在 Claude Code 中執行：
+```
+用 init_stitch_project 初始化我的 Stitch 專案 <projectId>
+```
+
+這會建立：
+```
+.stitch/
+├── metadata.json   ← screens map + 專案設定（stitch-skills 格式）
+├── DESIGN.md       ← 設計系統範本（已預填你的 Stitch 主題色彩、字體）
+├── SITE.md         ← 站台願景與頁面清單
+└── designs/        ← HTML + PNG 匯出暫存區
+```
+
+**第四步 — 完善範本**
+
+編輯 `.stitch/DESIGN.md`，補充色彩系統、字體規則、元件樣式。編輯 `.stitch/SITE.md`，描述網站目標與頁面規劃。
+
+或直接用 `design-md` skill 分析現有畫面，自動填寫 DESIGN.md。
+
+**第五步 — 執行進階工作流程**
+```
+執行 stitch-loop，自動生成我網站的所有頁面
+```
+```
+把我的 Stitch 畫面轉換成 React 元件
 ```
 
 ## 環境變數

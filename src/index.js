@@ -235,6 +235,162 @@ async function fetchScreenImage(projectId, screenId, gcpProjectId) {
 }
 
 /**
+ * 初始化 .stitch/ 目錄結構，供 stitch-skills 工作流程使用
+ */
+async function initStitchProject(projectId, gcpProjectId, outputDir) {
+    const stitchDir = outputDir || path.join(process.cwd(), '.stitch');
+    const designsDir = path.join(stitchDir, 'designs');
+
+    if (!fs.existsSync(stitchDir)) fs.mkdirSync(stitchDir, { recursive: true });
+    if (!fs.existsSync(designsDir)) fs.mkdirSync(designsDir, { recursive: true });
+
+    // 取得專案詳情
+    const projectRes = await callStitchAPI("tools/call", {
+        name: "get_project",
+        arguments: { projectId }
+    }, gcpProjectId);
+
+    // 解析專案資料（遞迴搜尋有意義的物件）
+    const parseProjectData = (obj) => {
+        if (!obj || typeof obj !== 'object') return {};
+        if (obj.content?.[0]?.text) {
+            try { return JSON.parse(obj.content[0].text); } catch (e) {}
+        }
+        const find = (o) => {
+            if (!o || typeof o !== 'object') return null;
+            if (o.projectId || o.title || o.designTheme) return o;
+            for (const k in o) { const r = find(o[k]); if (r) return r; }
+            return null;
+        };
+        return find(obj) || {};
+    };
+    const projectData = parseProjectData(projectRes.result);
+
+    // 取得 screens 清單
+    const screensRes = await callStitchAPI("tools/call", {
+        name: "list_screens",
+        arguments: { projectId }
+    }, gcpProjectId);
+
+    let screens = [];
+    try {
+        const text = screensRes.result?.content?.[0]?.text;
+        if (text) screens = JSON.parse(text);
+    } catch (e) { /* 保持空陣列 */ }
+
+    // 建立 screens map（stitch-skills 格式）
+    const deviceType = projectData.deviceType || 'MOBILE';
+    const defaultWidth = deviceType === 'MOBILE' ? 390 : 1440;
+    const defaultHeight = deviceType === 'MOBILE' ? 844 : 900;
+    const screensMap = {};
+    let xOffset = 0;
+
+    for (const screen of (Array.isArray(screens) ? screens : [])) {
+        const sid = screen.id || screen.screenId;
+        if (!sid) continue;
+        const rawName = screen.title || screen.displayName || screen.name || sid;
+        const pageKey = String(rawName).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || String(sid);
+        screensMap[pageKey] = {
+            id: sid,
+            sourceScreen: `projects/${projectId}/screens/${sid}`,
+            x: xOffset,
+            y: 0,
+            width: screen.width || defaultWidth,
+            height: screen.height || defaultHeight
+        };
+        xOffset += defaultWidth + 159;
+    }
+
+    // 寫入 metadata.json
+    const metadata = {
+        name: `projects/${projectId}`,
+        projectId: String(projectId),
+        title: projectData.title || projectData.displayName || `Project ${projectId}`,
+        visibility: projectData.visibility || 'PRIVATE',
+        createTime: projectData.createTime || new Date().toISOString(),
+        updateTime: projectData.updateTime || new Date().toISOString(),
+        projectType: projectData.projectType || 'PROJECT_DESIGN',
+        origin: projectData.origin || 'STITCH',
+        deviceType,
+        designTheme: projectData.designTheme || {},
+        screens: screensMap,
+        metadata: { userRole: 'OWNER' }
+    };
+    const metadataPath = path.join(stitchDir, 'metadata.json');
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    log.success(`Saved: ${metadataPath}`);
+
+    // 建立 DESIGN.md 範本（不覆蓋已存在的）
+    const designMdPath = path.join(stitchDir, 'DESIGN.md');
+    if (!fs.existsSync(designMdPath)) {
+        const theme = metadata.designTheme;
+        const colorMode = theme.colorMode === 'DARK' ? 'Dark' : 'Light';
+        const platform = deviceType === 'MOBILE' ? 'Mobile' : 'Web';
+        fs.writeFileSync(designMdPath, `# Design System: ${metadata.title}
+**Project ID:** ${projectId}
+
+## 1. Visual Theme & Atmosphere
+[Describe the mood, density, and aesthetic philosophy of this design]
+
+## 2. Color Palette & Roles
+- **Primary** (${theme.customColor || '#000000'}) – Primary accent color
+- **Background** – [Add hex + description]
+- **Text Primary** – [Add hex + description]
+- **Text Secondary** – [Add hex + description]
+
+## 3. Typography Rules
+- Font: ${theme.font || 'DEFAULT'}
+- [Add heading sizes, body sizes, weights]
+
+## 4. Component Stylings
+* **Buttons:** [shape, padding, color strategy]
+* **Cards:** [corner radius, background, shadow]
+* **Inputs:** [border style, background, focus state]
+* **Navigation:** [style, position, behavior]
+
+## 5. Layout Principles
+[Whitespace strategy, margins, grid alignment, max-width]
+
+## 6. Design System Notes for Stitch Generation
+**Copy this block into every prompt:**
+
+**DESIGN SYSTEM (REQUIRED):**
+- Platform: ${platform}, ${platform}-first
+- Theme: ${colorMode}
+- Font: ${theme.font || 'Default'}
+- Primary Accent: ${theme.customColor || '#000000'}
+- Color Mode: ${colorMode}
+- Roundness: ${theme.roundness || 'DEFAULT'}
+`);
+        log.success(`Saved: ${designMdPath}`);
+    }
+
+    // 建立 SITE.md 範本（不覆蓋已存在的）
+    const siteMdPath = path.join(stitchDir, 'SITE.md');
+    if (!fs.existsSync(siteMdPath)) {
+        const pageList = Object.keys(screensMap).map(p => `- [ ] ${p}`).join('\n') || '- [ ] index';
+        fs.writeFileSync(siteMdPath, `# Site Vision: ${metadata.title}
+
+## Overview
+[Describe what this site/app does and who it's for]
+
+## Pages
+${pageList}
+
+## Design Goals
+- [Goal 1: e.g., fast onboarding for new users]
+- [Goal 2: e.g., clear call-to-action on every page]
+
+## Target Audience
+[Who is this for?]
+`);
+        log.success(`Saved: ${siteMdPath}`);
+    }
+
+    return { stitchDir, metadata, screenCount: Object.keys(screensMap).length };
+}
+
+/**
  * 下載專案的 DESIGN.md 設計系統規範文件
  */
 async function fetchDesignMd(projectId, gcpProjectId, outputPath) {
@@ -414,6 +570,18 @@ const CUSTOM_TOOLS = [
         }
     },
     {
+        name: "init_stitch_project",
+        description: "初始化 .stitch/ 目錄結構，讓此專案與 stitch-skills (google-labs-code/stitch-skills) 工作流程相容。自動建立 metadata.json（含完整 screens map）、DESIGN.md 範本、SITE.md 範本、designs/ 目錄。執行後即可使用 stitch-loop、design-md、react-components 等進階 Skill。",
+        inputSchema: {
+            type: "object",
+            properties: {
+                projectId: { type: "string", description: "Stitch 專案 ID" },
+                outputDir: { type: "string", description: ".stitch/ 目錄路徑（選填，預設為當前目錄下的 .stitch/）" }
+            },
+            required: ["projectId"]
+        }
+    },
+    {
         name: "fetch_design_md",
         description: "下載 Stitch 專案的 DESIGN.md 設計系統規範文件。DESIGN.md 包含色彩、字體、間距、元件規範，可供 AI coding agent（如 Claude Code）在生成 UI 時遵循一致的設計系統。需先在 Stitch 匯出設計系統。",
         inputSchema: {
@@ -440,7 +608,7 @@ async function main() {
 
         // 建立 MCP Server
         const server = new Server(
-            { name: "stitch", version: "1.2.0" },
+            { name: "stitch", version: "1.3.0" },
             { capabilities: { tools: {} } }
         );
 
@@ -491,6 +659,32 @@ async function main() {
                         content: [{
                             type: "text",
                             text: `✅ Exported ${result.screenCount} screens to ${result.exportDir}\n\nManifest:\n${JSON.stringify(result.manifest, null, 2)}`
+                        }]
+                    };
+                }
+
+                if (name === "init_stitch_project") {
+                    const result = await initStitchProject(args.projectId, gcpProjectId, args.outputDir);
+                    const screens = Object.keys(result.metadata.screens);
+                    return {
+                        content: [{
+                            type: "text",
+                            text: [
+                                `✅ .stitch/ initialized at ${result.stitchDir}`,
+                                ``,
+                                `Files created:`,
+                                `  metadata.json  — ${result.screenCount} screens mapped`,
+                                `  DESIGN.md      — fill in colors, typography, components`,
+                                `  SITE.md        — fill in page goals and audience`,
+                                `  designs/       — output directory for Stitch exports`,
+                                ``,
+                                screens.length > 0 ? `Screens: ${screens.join(', ')}` : `No screens found yet`,
+                                ``,
+                                `Next steps:`,
+                                `  1. Edit .stitch/DESIGN.md — or run: npx skills add google-labs-code/stitch-skills --skill design-md`,
+                                `  2. Edit .stitch/SITE.md   — describe your site vision and pages`,
+                                `  3. Use stitch-loop skill to auto-generate all pages`
+                            ].join('\n')
                         }]
                     };
                 }
