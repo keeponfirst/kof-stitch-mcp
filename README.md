@@ -46,7 +46,8 @@ Your MCP Client → kof-stitch-mcp → Google Stitch API
 ### Additional Tools (by this package)
 - `fetch_screen_code` - Download screen HTML code directly
 - `fetch_screen_image` - Download screen screenshot as PNG
-- `export_project` - **NEW** Batch export all screens (HTML + PNG) with manifest
+- `export_project` - Batch export all screens (HTML + PNG) with manifest
+- `fetch_design_md` - **NEW** Download project's DESIGN.md design system spec (supports [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/))
 
 ## Prerequisites
 
@@ -152,6 +153,21 @@ After configuration, you can use natural language in your MCP client:
 
 "Download the HTML code for screen abc123 in project xyz789"
 → Uses fetch_screen_code tool
+
+"Download the DESIGN.md from my Stitch project xyz789"
+→ Uses fetch_design_md tool
+→ Saves DESIGN.md to your working directory
+→ AI coding agents can now follow your design system when generating UI
+```
+
+### DESIGN.md Workflow (Vibe Design)
+
+Google Stitch's new **DESIGN.md** feature (launched 2026-03-18) lets you define your design system in a portable Markdown file — colors, typography, spacing, and component patterns — that AI agents can read and follow.
+
+```
+1. Design in Stitch → export DESIGN.md from project settings
+2. fetch_design_md → saves DESIGN.md to your repo
+3. Claude Code reads DESIGN.md → generates consistent UI components
 ```
 
 ## Environment Variables

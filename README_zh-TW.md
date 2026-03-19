@@ -46,7 +46,8 @@ Google Stitch 在 `stitch.googleapis.com/mcp` 提供官方 MCP 端點，但它�
 ### 額外工具（由本套件提供）
 - `fetch_screen_code` - 直接下載畫面 HTML 程式碼
 - `fetch_screen_image` - 下載畫面截圖為 PNG
-- `export_project` - **新功能** 批次匯出所有畫面（HTML + PNG）並產生清單
+- `export_project` - 批次匯出所有畫面（HTML + PNG）並產生清單
+- `fetch_design_md` - **新功能** 下載專案的 DESIGN.md 設計系統規範文件（支援 [Stitch Vibe Design](https://blog.google/innovation-and-ai/models-and-research/google-labs/stitch-ai-ui-design/)）
 
 ## 前置需求
 
@@ -152,6 +153,21 @@ GOOGLE_CLOUD_PROJECT=your-project-id npx @keeponfirst/kof-stitch-mcp
 
 「下載專案 xyz789 中畫面 abc123 的 HTML 程式碼」
 → 使用 fetch_screen_code 工具
+
+「下載我的 Stitch 專案 xyz789 的 DESIGN.md」
+→ 使用 fetch_design_md 工具
+→ 儲存 DESIGN.md 到你的工作目錄
+→ AI coding agent 現在可以遵循你的設計系統來生成 UI
+```
+
+### DESIGN.md 工作流程（Vibe Design）
+
+Google Stitch 全新的 **DESIGN.md** 功能（2026-03-18 發布）讓你用一份可攜帶的 Markdown 文件定義設計系統 — 包含色彩、字體、間距、元件規範 — 供 AI agent 讀取並遵循。
+
+```
+1. 在 Stitch 設計 → 從專案設定匯出 DESIGN.md
+2. fetch_design_md → 儲存 DESIGN.md 到你的 repo
+3. Claude Code 讀取 DESIGN.md → 生成符合設計系統的 UI 元件
 ```
 
 ## 環境變數

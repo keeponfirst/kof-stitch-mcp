@@ -235,6 +235,63 @@ async function fetchScreenImage(projectId, screenId, gcpProjectId) {
 }
 
 /**
+ * 下載專案的 DESIGN.md 設計系統規範文件
+ */
+async function fetchDesignMd(projectId, gcpProjectId, outputPath) {
+    const projectRes = await callStitchAPI("tools/call", {
+        name: "get_project",
+        arguments: { projectId }
+    }, gcpProjectId);
+
+    if (!projectRes.result) {
+        throw new Error("Could not fetch project details");
+    }
+
+    // 遞迴尋找 DESIGN.md 相關 URL
+    let designMdUrl = null;
+    const findDesignMdUrl = (obj) => {
+        if (designMdUrl || !obj || typeof obj !== 'object') return;
+        for (const key in obj) {
+            const val = obj[key];
+            if (typeof val === 'string' && val.startsWith('http')) {
+                const lk = key.toLowerCase();
+                // 尋找 key 名稱包含 designmd / design_md 的欄位
+                if (lk.includes('design') && lk.includes('md')) {
+                    designMdUrl = val;
+                    return;
+                }
+                // 或 URL 本身包含 DESIGN.md
+                if (val.includes('DESIGN.md') || val.includes('design.md')) {
+                    designMdUrl = val;
+                    return;
+                }
+            }
+            if (typeof val === 'object') findDesignMdUrl(val);
+        }
+    };
+    findDesignMdUrl(projectRes.result);
+
+    if (!designMdUrl) {
+        throw new Error(
+            "No DESIGN.md found in this project. " +
+            "Export your design system from Stitch first: " +
+            "Project Settings → Export Design System → DESIGN.md"
+        );
+    }
+
+    log.info(`Downloading DESIGN.md...`);
+    const res = await fetch(designMdUrl);
+    if (!res.ok) throw new Error(`Failed to download DESIGN.md: ${res.status}`);
+
+    const content = await res.text();
+    const filePath = outputPath || path.join(process.cwd(), 'DESIGN.md');
+    fs.writeFileSync(filePath, content);
+    log.success(`Saved: ${filePath}`);
+
+    return { filePath, content };
+}
+
+/**
  * 匯出整個專案的所有 screens（code + images）
  */
 async function exportProject(projectId, gcpProjectId, outputDir) {
@@ -355,6 +412,18 @@ const CUSTOM_TOOLS = [
             },
             required: ["projectId"]
         }
+    },
+    {
+        name: "fetch_design_md",
+        description: "下載 Stitch 專案的 DESIGN.md 設計系統規範文件。DESIGN.md 包含色彩、字體、間距、元件規範，可供 AI coding agent（如 Claude Code）在生成 UI 時遵循一致的設計系統。需先在 Stitch 匯出設計系統。",
+        inputSchema: {
+            type: "object",
+            properties: {
+                projectId: { type: "string", description: "Stitch 專案 ID" },
+                outputPath: { type: "string", description: "儲存路徑（選填，預設為當前目錄下的 DESIGN.md）" }
+            },
+            required: ["projectId"]
+        }
     }
 ];
 
@@ -371,7 +440,7 @@ async function main() {
 
         // 建立 MCP Server
         const server = new Server(
-            { name: "stitch", version: "1.0.0" },
+            { name: "stitch", version: "1.2.0" },
             { capabilities: { tools: {} } }
         );
 
@@ -423,6 +492,15 @@ async function main() {
                             type: "text",
                             text: `✅ Exported ${result.screenCount} screens to ${result.exportDir}\n\nManifest:\n${JSON.stringify(result.manifest, null, 2)}`
                         }]
+                    };
+                }
+
+                if (name === "fetch_design_md") {
+                    const result = await fetchDesignMd(args.projectId, gcpProjectId, args.outputPath);
+                    return {
+                        content: [
+                            { type: "text", text: `✅ DESIGN.md saved to ${result.filePath}\n\n---\n\n${result.content}` }
+                        ]
                     };
                 }
 
